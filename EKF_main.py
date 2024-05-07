@@ -237,12 +237,13 @@ def main ():
 
         #1 represents an identify matrix, but I wrote it as 1 for datatype compatability
         #scaling up values to ensure precision when multiplying very small numbers
-        #Kalman_gain_large = Kalman_gain * 1e12
-        #C_matrix_large = C_matrix * 1e12
-        #sigma_k_minus_large = sigma_k_minus * 1e12
+        Kalman_gain_large = Kalman_gain * 1e12
+        C_matrix_large = C_matrix * 1e12
+        sigma_k_minus_large = sigma_k_minus * 1e12
 
         #error covariance measurment update
-        sigma_k_plus = (1 - Kalman_gain * C_matrix) * sigma_k_minus 
+        sigma_k_plus_large = (1e12 - Kalman_gain_large * C_matrix_large) * sigma_k_minus_large 
+        sigma_k_plus = sigma_k_plus_large / 1e12
         print("sigma_k_plus:", sigma_k_plus)
 
         print("interval: {}".format(k))
