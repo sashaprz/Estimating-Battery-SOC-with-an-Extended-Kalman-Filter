@@ -8,25 +8,12 @@ from sympy import Eq
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import matplotlib.pyplot as plt
+import inspect
 
-#VARIABLES
-#general
-global V_measured
-k = 1 #k is the timestep
 
-x_k_minus_1 = 1.00
-x_k_minus =  0.99 #initial guess for current timestep
-x_k_plus = 1.00 #final guess for current timestep
-
-sigma_k_minus_1 = 10 #final estimate for previous timestep
-#sigma_k_minus = initial guess for current timestep
-#sigma_k_plus = final guess for current timestep
-
-estimations = []
-intervals = []
-
-R1 = 6.955
-R0 = 6.955
+#inivalizing R1 R0 values based of what ECM calcs gave me, guessing these are wrong tho. 
+"""R1 = 6.955
+R0 = 6.955"""
 
 #google sheets API
 sheet_name = 'OCV_data_GOOD'
@@ -37,109 +24,85 @@ gc = gspread.authorize(credentials)
 client = gspread.authorize(credentials)
 sheet = client.open(sheet_name).sheet1
 
-# calculating variance of Hall Effect sensor noise. standard deviation = error x callibration factor. it is a gaussian distribution with a zero mean
-mean = 0
-std_dev = 0.05 * 2.76854928e-4
-vk = Normal('vk', mean, std_dev)
-
-vk = Normal('vk', mean, std_dev)
-
-# Sample a value from the normal distribution to get vk_scalar
-vk_scalar = np.random.normal(mean, std_dev)
-
-# Adjust vk_scalar to align with the distribution defined by vk
-vk_scalar = vk_scalar * std_dev + mean  # Adjust vk_scalar to match the mean and standard deviation of the distribution
-
-#wk represents the process noise error. it has a zero mean, and is given by E(wk*wk)^T = R_k, where R_k is the covariance matrix with the process noise. this is basically any unaccounted error or discrepencies in the system dynamics. Everything is defined by only one dimension, therefore calculating a covariance matrix doesn't make sense. So I will set wk to zero, because of the zero mean 
-wk = 0 
-#ukf is represented by this term: -n * dt / Q * i. I am leaving it as a local variable within the f_function for simplicity. 
-#ukg is I think the resistance values (R1, R0), which I've defined within a function to calculate R1 and R0, as they differ at different SOC values
 
 #EQUATIONS
 #f and g functions (for calculating matricies)
-def f_function(x_k_minus, x_k_minus_1):
+def f_function(x_k_minus_1, i_measured):
 
     n = 0.90 #representing eta, the efficiency factor. LFP batteries have an efficiency of 90-95%
     Q = 0.800 #capacity in Amp-hours
-    dt = 1 #PLACEHOLDER - delta t, size of timestep
+    dt = 1 #~1 second delta t, size of timestep
 
-    #extract i value from sheet so it's not constant, need to change it to use dataset instead
-    row_index = k + 1
-    global i_measured
-    i_measured = sheet.cell(row_index, 3).value
+    print(i_measured)
+    print(f"x_k_minus_1: {x_k_minus_1}")
+    x = (n * dt / Q )
+    print(f"x: {x}")
     # guess for x_k_minus_1 based on state space model
-    result = x_k_minus_1 - (n * dt / Q )
+    result = (x_k_minus_1 - ((n * dt / Q ) * i_measured))
 
     if isinstance(i_measured, (list, tuple)):
         i_measured = i_measured[0]
 
-    x_k_minus = result #* float(i_measured)
+    x_k_minus = result 
+    print(x_k_minus)
 
     return x_k_minus
 
 def OCV_function(x_k_minus): 
 
-    x_k = sp.symbols('x_k')
+    function = 0.2218 + 0.2331 * x_k_minus - 0.0062 * x_k_minus**2 + 0.0001 * x_k_minus**3 - 0.0000 * x_k_minus**4
 
-    function = 0.2218 + 0.2331 * x_k - 0.0062 * x_k**2 + 0.0001 * x_k**3 - 0.0000 * x_k**4
+    #OCV = function.subs(x_k, x_k_minus)
+    print(function)
 
-    OCV = function.subs(x_k, x_k_minus)
-    print(OCV)
-
-    return OCV
+    return function
 
 #Observation Model
 #I am using a RC model to represent my battery. This is a type of equivalent circuit model (ECM). The resistance values need to be calculated at various SOCs, so this is defining functions to do that
 #this is assuming a linear model, however I don't think that will be an issue as I am using the points at k and k - 1, so close that the trend might as well be linear
-def calculate_R1_R0(V_measured):
+def calculate_R1_R0(V_measured, x_k_minus, x_k_minus_1):
     #since R1 and R0 are interconnected (you require one to find the other), they must be solved together. Therefore must use guess and check
-    max_iterations = 1
-    tolerance = 1e-6
+    #max_iterations = 1
+    #tolerance = 1e-6
 
     #intial value for R0, based off measurement but doesn't account for variations while SOC decreases. actual measurement was 0.385 but i increased so that it was a more even split between two resistors
-    R0 = 2.385 
+    #R0 = 2.385 
     V_measured = float(V_measured)
-
-    for num in range(max_iterations):
-        R1_new = (OCV_function(x_k_minus) - OCV_function(x_k_minus_1) - (1 - x_k_minus + x_k_minus_1) * R0) / (x_k_minus - x_k_minus_1)
-        R1 = R1_new
-        x = None
-        if (1 - x_k_minus_1) == 0:
-            #to prevent it being divided by zero and erroring
-            x = 1
-        else:
-            x = (1 - x_k_minus_1)
-        R0_new = (OCV_function(x_k_minus_1) - R1 + (1 - x_k_minus_1) * R0) / x
-        x = OCV_function(x_k_minus_1) - R1
     
-    V2 = R0_new *  0.14 #Vin divided by Imin
-    V2 = float(V2)
-    V1 = V_measured - V2 
-    R1 = V1 / 0.16 #Vin divided by Imax
+    ###
+    #for num in range(max_iterations):
+    #    R1_new = (OCV_function(x_k_minus) - OCV_function(x_k_minus_1, V_measured) - (1 - x_k_minus + x_k_minus_1) * R0) / (x_k_minus - x_k_minus_1)
+    #    R1 = R1_new
+    #    x = None
+    #    if (1 - x_k_minus_1) == 0:
+    #        #to prevent it being divided by zero and erroring
+    #        x = 1
+    #    else:
+    #        x = (1 - x_k_minus_1)
+    #    R0_new = (OCV_function(x_k_minus_1) - R1 + (1 - x_k_minus_1) * R0) / x
+    #    x = OCV_function(x_k_minus_1) - R1
     
-    #R1 = 6.955
-    #R0 = 6.955
-    #R1 = 0.5
-    #R0 = 0.7
+    #V2 = R0_new *  0.14 #Vin divided by Imin
+    #V2 = float(V2)
+    #V1 = V_measured - V2 
+    #R1 = V1 / 0.16 #Vin divided by Imax
+    #print("R1:", R1)
+    #print("R2:", R2)
+     
 
+    ##Change R1, R0
+    R1 = 6.955
+    R0 = 6.955
     return R1, R0
 
-def g_function(x_k_minus, k):
+def g_function(x_k_minus, x_k_minus_1, V_measured):
 
-    row_index = k + 1
-
-    #take voltage measurement from user, used to compare + also calculate values
-    global V_measured
-    V_measured = sheet.cell(row_index, 2).value #from google spreadsheet, second column. change it to extract from dataset instead of sheet (the sheet is the same data curve was created off) likewrise for current measurements (find dataset)
-
-    R1, R0 = calculate_R1_R0(V_measured)
-
+    #take voltage measurement from user, used to compare + also calculate value
+    R1, R0 = calculate_R1_R0(V_measured, x_k_minus, x_k_minus_1)
     #R1 = 0.6955
     #R0 = 0.8
-
     #defining i_R1, the current across the R1 resistor. since it's using the R1 and R0 values already calculated at time k, I don't need to index them again. But they are different for each timestep. 
     R_total = R1 + R0
-
     #calculating current across full circuit; defining i
     i = float(V_measured) / R_total
 
@@ -153,10 +116,6 @@ def g_function(x_k_minus, k):
     #returns expected terminal voltage
     #return y_hat_k
 
-#state space model
-x_future = f_function(x_k_minus, wk) #not calling uk, as uk represents the eta term, which is inside the f_function. 
-yk = g_function(x_k_minus, k)
-print(yk)
 
 #matricies
 def calculate_A_matrix(x_k_minus, x_k_minus_1):
@@ -169,29 +128,29 @@ def calculate_A_matrix(x_k_minus, x_k_minus_1):
 
     return A_matrix
 
-def calculate_B_matrix(x_k_minus, x_k_minus_1):
-    f = f_function(x_k_minus, x_k_minus_1) + wk
-    B_matrix = sp.diff(f, wk)
-    return B_matrix
+#def calculate_B_matrix(x_k_minus, x_k_minus_1):
+#    f = f_function(x_k_minus, x_k_minus_1) + wk
+#    B_matrix = sp.diff(f, wk)
+#    return B_matrix
 
 
-def calculate_C_matrix(x_k_minus, vk, k):
+def calculate_C_matrix(x_k_minus, x_k_minus_1, V_measured, vk):
     # Define symbolic variable for g
-    g_symbolic = sp.symbols('g')
+   # g_symbolic = sp.symbols('g')
     # Define symbolic variable for x_k_minus
     x_k_minus_symbolic = sp.symbols('x_k_minus')
     # Calculate g
-    g = g_function(x_k_minus_symbolic, k) + vk
+    g = g_function(x_k_minus, x_k_minus_1, V_measured) + vk
     # Calculate the derivative of g with respect to x_k_minus
     C_matrix = sp.diff(g, x_k_minus_symbolic)
     # Evaluate the derivative at the given value of x_k_minus
     C_matrix_value = C_matrix.evalf(subs={x_k_minus_symbolic: x_k_minus})
     return C_matrix_value
 
-def calculate_D_matrix(x_k_minus):
-    g = g_function(x_k_minus, k) + vk
-    D_matrix = sp.diff(g, vk)
-    return D_matrix
+#def calculate_D_matrix(x_k_minus):
+#    g = g_function(x_k_minus, k) + vk
+#   D_matrix = sp.diff(g, vk)
+#    return D_matrix
 
     
 def plot_SOC(estimations, intervals): 
@@ -208,34 +167,68 @@ def plot_SOC(estimations, intervals):
     plt.grid(True)
     plt.legend()
     plt.show()
+    return
 
 
 #EKF equations
 def main ():
-    global x_k_plus #explicitly declare as global variable
-    global x_k_minus_1
-    global sigma_k_minus_1
+    #VARIABLES
+    x_k_plus = 0.0
+    x_k_minus =  0.0
+    x_k_minus_1 = 1.00
+
+    #error matrices and terms
+    sigma_k_minus_1 = 1.00 #initalizing error covariance matrix as equivalent to identify matrix
     x_k_minus_1 =  100 #final guess for previous timestep
-    global vk_scalar
-    global i_measured
+    vk_scalar = 0.0
+    wk = 0 
+    vk = 1
+    
+    #measured values
+    i_measured = 0.0
+    V_measured = 0.0
+
+    #lists so i can plot data afterwards
+    estimations = []
+    intervals = []
+
+    #for sake of temporary simplicity, I am setting vk = 1 and ignoring the effects of noise. 
+    """
+    # calculating variance of Hall Effect sensor noise. standard deviation = error x callibration factor. it is a gaussian distribution with a zero mean
+    mean = 0
+    std_dev = 0.05 * 2.76854928e-4
+    vk = Normal("vk", mean, std_dev)
+
+    # Sample a value from the normal distribution to get vk_scalar
+    #vk_scalar = np.random.normal(mean, std_dev)
+    vk_scalar = vk_scalar * std_dev + mean  # Adjust vk_scalar to match the mean and standard deviation of the distribution
+    """
+    #wk represents the process noise error. it has a zero mean, and is given by E(wk*wk)^T = R_k, where R_k is the covariance matrix with the process noise. this is basically any unaccounted error or discrepencies in the system dynamics. Everything is defined by only one dimension, therefore calculating a covariance matrix doesn't make sense. So I will set wk to zero, because of the zero mean 
+    #ukf is represented by this term: -n * dt / Q * i. I am leaving it as a local variable within the f_function for simplicity. 
+    #ukg is I think the resistance values (R1, R0), which I've defined within a function to calculate R1 and R0, as they differ at different SOC values
 
     for k in range(1, 4): #put to 17274 after it works
 
-        #define x_k_mius as a symbolic variable
-        #x_k_minus = sp.symbols('x_k_minus')
+        #extract i value from sheet so it's not constant, need to change it to use dataset instead
+        row_index = k + 1
+        i_measured = float(sheet.cell(row_index, 3).value)
+        V_measured = float(sheet.cell(row_index, 2).value) #from google spreadsheet, second column. change it to extract from dataset instead of sheet (the sheet is the same data curve was created off) likewrise for current measurements (find dataset)
+
+        #calculate x_k_minus_1 (initial guess) with state space model
+        x_k_minus = f_function(x_k_minus_1, i_measured)
+        print(x_k_minus)
 
         #calculating A and C matrices breforehand to decrease computational time
-        C_matrix = calculate_C_matrix(x_k_minus, vk, k)
+        C_matrix = calculate_C_matrix(x_k_minus, x_k_minus_1, V_measured, vk)
         A_matrix = calculate_A_matrix(x_k_minus, x_k_minus_1)
 
         #calculate X hat k minus term
         state_estimate = f_function(x_k_minus, x_k_minus_1)
         #state_estimate_matrix = sympy.Matrix([state_estimate])
 
-        float(sigma_k_minus_1)
         #calculate error covariance time update
         #POTENTIAL ERROR: since my A matrix is no longer a matrix, I am just doing A times A, rather than A times A transposed. since wk is just zero, I did not include it
-        sigma_k_minus =  A_matrix * sigma_k_minus_1 * A_matrix
+        sigma_k_minus =  float(A_matrix * sigma_k_minus_1 * A_matrix)
 
         #calculate kalman gain - same potential error as above
         #vk_scalar = sp.symbols('vk_scalar')
@@ -246,18 +239,23 @@ def main ():
         #yk = sp.Matrix([[float(V_measured)]])
         
         #state estimate measuremnet update based on kalman gain
-        R1, R0 = calculate_R1_R0(V_measured)
-        i_R1 = float(V_measured)/ R1
+        R1, R0 = calculate_R1_R0(V_measured, x_k_minus,x_k_minus_1 )
+        i_R1 = V_measured/ R1
 
         #converting datatypes 
         #R1 = float(R1) if isinstance(R1, (list, tuple)) else R1
         #i_R1 = float(i_R1) if isinstance(i_R1, (list, tuple)) else i_R1
         #R0 = float(R0) if isinstance(R0, (list, tuple)) else R0
-        i_measured = float(i_measured)
+        #i_measured = float(i_measured)
 
         OCV_result = OCV_function(state_estimate)
         result = OCV_result - R1 * i_R1 - R0 * i_measured
         print(result)
+
+        #state space model
+        #x_future = f_function(x_k_minus) #not calling uk, as uk represents the eta term, which is inside the f_function. 
+        yk = g_function(x_k_minus, k)
+        print(yk)
 
         #yk = float(yk[0])
         x_k_plus = state_estimate + Kalman_gain * (yk - result) #(yk - g_function(state_estimate, k)) #may get error here because i'm not defining it in terms of x_values
