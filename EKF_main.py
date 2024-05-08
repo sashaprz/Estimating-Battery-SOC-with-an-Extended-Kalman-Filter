@@ -184,7 +184,7 @@ def main ():
     #ukf is represented by this term: -n * dt / Q * i. I am leaving it as a local variable within the f_function for simplicity. 
     #ukg is I think the resistance values (R1, R0), which I've defined within a function to calculate R1 and R0, as they differ at different SOC values
 
-    for k in range(1, 4): #put to 17274 after it works
+    for k in range(1, 100): #put to 17274 after it works
         #extract i value from sheet so it's not constant, need to change it to use dataset instead
         row_index = k + 1
         i_measured = float(sheet.cell(row_index, 3).value)
@@ -237,17 +237,17 @@ def main ():
 
         #1 represents an identify matrix, but I wrote it as 1 for datatype compatability
         #scaling up values to ensure precision when multiplying very small numbers
-        Kalman_gain_large = Kalman_gain * 1e12
-        C_matrix_large = C_matrix * 1e12
-        sigma_k_minus_large = sigma_k_minus * 1e12
+        Kalman_gain_large = Kalman_gain * 1e96
+        C_matrix_large = C_matrix * 1e96
+        sigma_k_minus_large = sigma_k_minus * 1e96
 
         #error covariance measurment update
-        sigma_k_plus_large = (1e12 - Kalman_gain_large * C_matrix_large) * sigma_k_minus_large 
-        sigma_k_plus = sigma_k_plus_large / 1e12
-        print("sigma_k_plus:", sigma_k_plus)
+        sigma_k_plus_large = (1e96 - Kalman_gain_large * C_matrix_large) * sigma_k_minus_large 
+        sigma_k_plus = sigma_k_plus_large / 1e96
+        #print("sigma_k_plus:", sigma_k_plus)
 
-        print("interval: {}".format(k))
-        print("x_k_plus: {}, sigma_k_plus: {}".format(x_k_plus, sigma_k_plus))
+        #print("interval: {}".format(k))
+        #print("x_k_plus: {}, sigma_k_plus: {}".format(x_k_plus, sigma_k_plus))
 
         k += 1
 
