@@ -14,7 +14,7 @@ import time
 #setting up google sheets API
 sheet_name = 'OCV_data_GOOD'
 scope = ['https://spreadsheets.google.com/feeds','https://www.googleapis.com/auth/drive']
-credentials = ServiceAccountCredentials.from_json_keyfile_name(r"C:\Users\Sasha\OneDrive\C_Projects\Simulator\psyched-upgrade-416312-3b5d91fc6159.json", scope)
+credentials = ServiceAccountCredentials.from_json_keyfile_name(r"JSON_FILE", scope) #add your json file here
 
 gc = gspread.authorize(credentials)
 client = gspread.authorize(credentials)
