@@ -10,11 +10,12 @@ from oauth2client.service_account import ServiceAccountCredentials
 import matplotlib.pyplot as plt
 import inspect
 import time
+from decimal import Decimal, getcontext
 
 #setting up google sheets API
-sheet_name = 'OCV_data_GOOD'
-scope = ['https://spreadsheets.google.com/feeds','https://www.googleapis.com/auth/drive']
-credentials = ServiceAccountCredentials.from_json_keyfile_name(r"JSON_FILE", scope) #add your json file here
+sheet_name = 'EKF_running_data'
+scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+credentials = ServiceAccountCredentials.from_json_keyfile_name(r"C:\Users\Sasha\Downloads\ekf-running-data-a0a7a91388e3.json", scope)
 
 gc = gspread.authorize(credentials)
 client = gspread.authorize(credentials)
@@ -155,7 +156,8 @@ def main ():
     wk = 0 #noise 
     vk = 1 #noise
     scale_factor = 1e12 #used to avoid nan values. A lot of these values are very small numbers, so python will round them to zero or have trouble performing operations with them, and that will cause errors in my code. 
-    
+    getcontext().prec = 10000
+
     #measured values (extracted from google sheet later)
     i_measured = 0.0
     V_measured = 0.0
@@ -203,6 +205,9 @@ def main ():
 
         #calculate kalman gain - weights my two answers according to past error term (ie, how accurate it's past estimates have been)
         Kalman_gain = sigma_k_minus * C_matrix * ((C_matrix * sigma_k_minus * C_matrix + vk_scalar)**-1)
+        #Kalman_gain_decimal = Decimal('1' + '0' * 999)
+        #Kalman_gain_decimal = Decimal(sigma_k_minus * C_matrix * ((C_matrix * sigma_k_minus * C_matrix + vk_scalar)**-1))
+        #print(Kalman_gain_decimal)
         
         #state estimate measuremnet update based on kalman gain
         R1, R0 = calculate_R1_R0()
@@ -226,32 +231,41 @@ def main ():
         sigma_k_minus_large = sigma_k_minus * scale_factor 
 
         #calculating the error covariance matrix, used to computer values in next timestep. 
+       
+       
         sigma_k_plus_large = (scale_factor - Kalman_gain_large * C_matrix_large) * sigma_k_minus_large 
         sigma_k_plus_calc = sigma_k_plus_large / scale_factor
 
         #scaling down sigma_k_plus to avoid nan results
         if k / 10 == 0: 
-            x = k * 10
-            sigma_k_plus_new = sigma_k_plus / (10 ** x)
+            x = (k * 1e20)**10
+            sigma_k_plus_new = sigma_k_plus / (100 ** x)
         else: 
             sigma_k_plus_new = sigma_k_plus_calc / 1e40
         #print("sigma_k_plus:", sigma_k_plus)
 
-        print("interval: {}".format(k))
-        print("x_k_plus: {}, sigma_k_plus: {}".format(x_k_plus, sigma_k_plus_new))
+        # #set floor and ceiling
+        temp = sigma_k_plus_new
+        if temp < 1e-20:
+            temp = 1e-20 
+        elif temp > 1e20:
+            temp = 1e20 
 
-        k += 1
+        print("interval: {}".format(k))
+        print("x_k_plus: {}, sigma_k_plus: {}".format(x_k_plus, temp))
+
+        #k += 1
 
         estimations.append(x_k_plus)
         intervals.append(k)
 
         #updating variables to prepare for next timestep
         x_k_minus_1 = x_k_plus
-        sigma_k_minus_1 = sigma_k_plus_new
+        sigma_k_minus_1 = temp
         sigma_k_plus = 1
 
         #adding delay to account for the API limit of 300 requests/minute 
-        time.sleep(0.6)
+        time.sleep(2)
 
     plot_SOC(estimations, intervals)
 
