@@ -1,0 +1,74 @@
+#integrating data + exporting to sheets. 
+
+import numpy as np
+import matplotlib.pyplot as plt
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
+
+# Function to extract data from the first Google Sheet
+def extract_data_from_first_sheet(sheet_name, credentials_file):
+    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+    credentials = ServiceAccountCredentials.from_json_keyfile_name(credentials_file, scope)
+    client = gspread.authorize(credentials)
+    sheet = client.open(sheet_name).sheet1
+    data = sheet.get_all_values()[1:] 
+    return np.array(data)
+
+# Function to write data to a new Google Sheet
+def write_to_new_sheet(data_to_write, new_sheet_name):
+    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+    new_credentials_file = r'C:\Users\Sasha\Downloads\ocv-soc-curve-data-k-function-fb4a0cd432dd.json' 
+    credentials = ServiceAccountCredentials.from_json_keyfile_name(new_credentials_file, scope)
+    client = gspread.authorize(credentials)
+    new_sheet = client.open(new_sheet_name)  # Open the specified sheet
+    worksheet = new_sheet.sheet1  # Assuming you want to write to the first worksheet
+
+    # Define batch size for writing data
+    batch_size = 500
+
+    for i in range(0, len(data_to_write), batch_size):
+        batch_data = data_to_write[i:i+batch_size]
+
+        if len(batch_data) == batch_size:  # Check if the size of the batch equals 1000
+            while True:
+                try:
+                    worksheet.append_rows(batch_data, value_input_option='USER_ENTERED')
+                    break  # Exit loop if write is successful
+                except EOFError as e:
+                    if e.response.status_code == 429:  # Quota exceeded error
+                        print("Quota exceeded. Retrying in 60 seconds...")
+                        time.sleep(60)  # Wait for 60 seconds and retry
+                    else:
+                        raise  # Raise other API errors
+
+# Assuming the name of the first Google Sheet and the credentials file
+first_sheet_name = 'EKF_running_data'
+credentials_file = r'C:\Users\Sasha\Downloads\ekf-running-data-a0a7a91388e3.json'
+
+# Step 1: Extract data from the first Google Sheet
+ocv_data = extract_data_from_first_sheet(first_sheet_name, credentials_file)
+
+# Extract OCV values from the extracted data
+ocv_values = np.array(ocv_data)[:, 1].astype(float)
+
+# Integrate to assign SOC values
+soc_values = np.linspace(100, 0, len(ocv_values))
+
+# Prepare data for writing to a new sheet
+data_to_write = [['SOC (%)', 'OCV']]
+for soc, ocv in zip(soc_values, ocv_values):
+    data_to_write.append([soc, ocv])
+
+# Assuming the name of the new Google Sheet
+new_sheet_name = 'OCV_SOC curve values'
+
+# Step 2: Write interpolated data to a new Google Sheet
+write_to_new_sheet(data_to_write, new_sheet_name)
+
+# Step 3: Plot SOC vs OCV
+plt.plot(soc_values, ocv_values)
+plt.xlabel('SOC (%)')
+plt.ylabel('OCV')
+plt.title('SOC vs OCV')
+plt.grid(True)
+plt.show()
