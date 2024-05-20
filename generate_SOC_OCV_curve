@@ -1,4 +1,4 @@
-#integrating data + exporting to sheets. 
+#use this to take your experimental OCV data and convert it into an SOC-OCV curve that is both a graph and a dataset within a google sheet. 
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -17,7 +17,7 @@ def extract_data_from_first_sheet(sheet_name, credentials_file):
 # Function to write data to a new Google Sheet
 def write_to_new_sheet(data_to_write, new_sheet_name):
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    new_credentials_file = r'C:\Users\Sasha\Downloads\ocv-soc-curve-data-k-function-fb4a0cd432dd.json' 
+    new_credentials_file = #path to your json file for second
     credentials = ServiceAccountCredentials.from_json_keyfile_name(new_credentials_file, scope)
     client = gspread.authorize(credentials)
     new_sheet = client.open(new_sheet_name)  # Open the specified sheet
@@ -33,17 +33,19 @@ def write_to_new_sheet(data_to_write, new_sheet_name):
             while True:
                 try:
                     worksheet.append_rows(batch_data, value_input_option='USER_ENTERED')
+                    print(f"Successfully wrote batch {i//batch_size + 1}")
                     break  # Exit loop if write is successful
-                except EOFError as e:
+                except gspread.exceptions.APIError as e:
                     if e.response.status_code == 429:  # Quota exceeded error
                         print("Quota exceeded. Retrying in 60 seconds...")
                         time.sleep(60)  # Wait for 60 seconds and retry
                     else:
+                        print(f"API Error: {e}")
                         raise  # Raise other API errors
 
 # Assuming the name of the first Google Sheet and the credentials file
 first_sheet_name = 'EKF_running_data'
-credentials_file = r'C:\Users\Sasha\Downloads\ekf-running-data-a0a7a91388e3.json'
+credentials_file = #path to your json file for first sheet
 
 # Step 1: Extract data from the first Google Sheet
 ocv_data = extract_data_from_first_sheet(first_sheet_name, credentials_file)
