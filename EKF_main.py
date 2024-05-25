@@ -203,11 +203,6 @@ def main ():
         estimations.append(x_k_plus)
         intervals.append(k)
 
-        #updating variables to prepare for next timestep
-        #x_k_minus_1 = x_k_plus
-        #sigma_k_minus_1 = temp
-        #sigma_k_plus = 1
-
         #adding delay to account for the API limit of 300 requests/minute 
         sleep(2)
 
