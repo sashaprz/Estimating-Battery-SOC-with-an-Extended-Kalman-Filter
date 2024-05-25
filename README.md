@@ -1,3 +1,4 @@
+# 🔋Estimating battery SOC with an Extended Kalman Filter and an Arduino 
 I made an extended kalman filter (EKF) to estimate battery SOC (state of charge). An accurate estimation for SOC can help avoid battery degradation, and make the battery last longer!!
 
 If you want an overview, check out my video :) https://www.youtube.com/watch?v=EO3NNHc-09Y&t=241s
