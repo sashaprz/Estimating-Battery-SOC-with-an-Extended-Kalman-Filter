@@ -10,7 +10,7 @@ def model(z, K0, K1, K2, K3, K4):
 # Google Sheets setup
 def get_data_from_sheet(sheet_url, sheet_name):
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    creds = ServiceAccountCredentials.from_json_keyfile_name(r"C:\Users\Sasha\Downloads\ocv-soc-curve-data-k-function-24d2b9e31aa9.json", scope)
+    creds = ServiceAccountCredentials.from_json_keyfile_name(r"xxxx", scope) #add the path to your json file for the API key
     client = gspread.authorize(creds)
     
     sheet = client.open_by_url(sheet_url).worksheet(sheet_name)
