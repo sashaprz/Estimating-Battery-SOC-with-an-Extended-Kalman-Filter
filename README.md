@@ -12,7 +12,7 @@ The first thing I did was discharge the battery from 100% to 0% SOC at constant,
 OCV is different than terminal voltage, and terminal voltage is what you can actually measure. So I needed to relate OCV to terminal voltage. And to do that, I used a Thevenin equivalent circuit model (ECM). This is a simplified representation of a battery. To determine the values for R1, R2, and C1, I needed to do a pulse discharge test on the battery, which looked like this. Check out the rest of the repo for the code. And here's the circuit picture, + a circuit diagram for both circuits :) 
 <img src="[C:\Users\Sasha\Downloads\20240428_173611.jpg](https://github.com/sashaprz/Estimating-Battery-SOC-with-an-Extended-Kalman-Filter/blob/main/discharge_pulse.jpg)" alt="Placeholder Image" width="100" height="100">
 
-<img src="[C:\Users\Sasha\Downloads\20240525_144547.jpg](https://github.com/sashaprz/Estimating-Battery-SOC-with-an-Extended-Kalman-Filter/blob/main/circuit_diagrams%20(1).jpg)" alt="Placeholder Image" width="100" height="100">
+<img src="circuit_diagrams (1).jpg" alt="Placeholder Image" width="100" height="100">
 
 Now, I have an equation that relates terminal voltage (which is measureable) to OCV, and one that relates OCV to state of charge. This means that I can use terminal voltage to predict SOC!
 
