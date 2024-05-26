@@ -21,6 +21,11 @@ OCV is different than terminal voltage, and terminal voltage is what you can act
   <img src="circuit_diagrams (1).jpg" alt="Placeholder Image" width="600" height="800">
 </div>
 
+And here's how you can calculate R1 R2 and C1 from the data. 
+<div style="text-align: center;">
+  <img src="ECM_calculations.png" alt="Placeholder Image" width="600" height="800">
+</div>
+
 Now, I have an equation that relates terminal voltage (which is measureable) to OCV, and one that relates OCV to state of charge. This means that I can use terminal voltage to predict SOC!
 
 ## The algorithm
