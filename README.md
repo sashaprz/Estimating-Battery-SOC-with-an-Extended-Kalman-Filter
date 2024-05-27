@@ -18,7 +18,7 @@ OCV is different than terminal voltage, and terminal voltage is what you can act
 </div>
 
 <div style="text-align: center;">
-  <img src="circuit_diagrams (1).jpg" alt="Placeholder Image" width="600" height="800">
+  <img src="circuit_diagrams (1).jpg" alt="Placeholder Image" width="600" height="400">
 </div>
 
 And here's how you can calculate R1 R2 and C1 from the data. 
