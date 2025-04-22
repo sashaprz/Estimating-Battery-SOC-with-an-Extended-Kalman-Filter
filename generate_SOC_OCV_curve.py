@@ -8,7 +8,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 
 # Function to extract data from the first Google Sheet
 def extract_data_from_first_sheet(sheet_name, credentials_file):
-    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+    scope = ["//link to your spreadsheet"]
     credentials = ServiceAccountCredentials.from_json_keyfile_name(credentials_file, scope)
     client = gspread.authorize(credentials)
     sheet = client.open(sheet_name).sheet1
@@ -17,7 +17,7 @@ def extract_data_from_first_sheet(sheet_name, credentials_file):
 
 # Function to write data to a new Google Sheet
 def write_to_new_sheet(data, sheet_name, credentials_file):
-    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+    scope = ["//link to your spreadsheet"]
     credentials = ServiceAccountCredentials.from_json_keyfile_name(credentials_file, scope)
     client = gspread.authorize(credentials)
     new_sheet = client.create(sheet_name)
