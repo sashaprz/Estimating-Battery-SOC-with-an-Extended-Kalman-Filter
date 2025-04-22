@@ -12,7 +12,7 @@ def model(z, K0, K1, K2, K3, K4):
 
 # Google Sheets API setup
 def get_data_from_sheet(sheet_url, sheet_name):
-    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+    scope = ["//link to your spreadsheet"]
     creds = ServiceAccountCredentials.from_json_keyfile_name(r"xxxx", scope) #add the path to your json file for the API key
     client = gspread.authorize(creds)
     
@@ -46,7 +46,7 @@ def fit_model(z, y):
 # Main function
 def main():
     # Replace with your Google Sheet URL and sheet name
-    sheet_url = "https://docs.google.com/spreadsheets/d/1AcGhJumi5lQYReXOr7019HTJ4Q93r5n42zfjYVU2fgY/edit#gid=0"
+    sheet_url = "//link to your spreadsheet"
     sheet_name = "Sheet1"
 
     #extract data from sheet
